@@ -8,7 +8,7 @@
 package main
 
 import (
-	"github.com/evecimar/iqoptionapi/cmd"
+	"github.com/xAutoBot/iqoption-sdk/cmd"
 )
 
 func main() {

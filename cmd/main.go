@@ -8,11 +8,11 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/evecimar/iqoptionapi/src/configs"
-	"github.com/evecimar/iqoptionapi/src/entities/messages"
-	"github.com/evecimar/iqoptionapi/src/entities/messages/responseMessage"
-	"github.com/evecimar/iqoptionapi/src/entities/profile"
-	"github.com/evecimar/iqoptionapi/src/repositories/iqoptionRepository"
+	"github.com/xAutoBot/iqoption-sdk/src/configs"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/messages/responseMessage"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/profile"
+	"github.com/xAutoBot/iqoption-sdk/src/repositories/iqoptionRepository"
 )
 
 const (

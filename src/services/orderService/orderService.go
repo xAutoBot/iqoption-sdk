@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/evecimar/iqoptionapi/src/entities/messages"
-	"github.com/evecimar/iqoptionapi/src/entities/messages/responseMessage"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/messages/responseMessage"
 )
 
 const (

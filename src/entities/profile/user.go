@@ -1,6 +1,6 @@
 package profile
 
-import "github.com/evecimar/iqoptionapi/src/entities/messages/responseMessage"
+import "github.com/xAutoBot/iqoption-sdk/src/entities/messages/responseMessage"
 
 const (
 	DemoAccountType int = 4

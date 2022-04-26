@@ -3,7 +3,7 @@ package responseMessage
 import (
 	"encoding/json"
 
-	"github.com/evecimar/iqoptionapi/src/entities/messages"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
 )
 
 type Authenticated struct {

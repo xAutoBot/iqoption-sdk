@@ -1,4 +1,4 @@
-module github.com/evecimar/iqoptionapi
+module github.com/xAutoBot/iqoption-sdk
 
 go 1.17
 

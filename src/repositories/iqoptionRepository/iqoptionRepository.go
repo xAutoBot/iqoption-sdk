@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/url"
 
-	"github.com/evecimar/iqoptionapi/src/configs"
-	"github.com/evecimar/iqoptionapi/src/entities/messages"
-	"github.com/evecimar/iqoptionapi/src/repositories/authenticationRepository"
 	"github.com/gorilla/websocket"
+	"github.com/xAutoBot/iqoption-sdk/src/configs"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
+	"github.com/xAutoBot/iqoption-sdk/src/repositories/authenticationRepository"
 )
 
 var websocketHost = flag.String("addr", configs.IqoptionWebSocketHost, "http service address")

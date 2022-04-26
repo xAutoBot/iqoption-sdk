@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/evecimar/iqoptionapi/src/configs"
+	"github.com/xAutoBot/iqoption-sdk/src/configs"
 )
 
 type ResponseLogin struct {

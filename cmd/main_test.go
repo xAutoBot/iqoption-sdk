@@ -5,9 +5,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/evecimar/iqoptionapi/src/entities/messages"
-	"github.com/evecimar/iqoptionapi/src/entities/messages/responseMessage"
-	"github.com/evecimar/iqoptionapi/src/repositories/iqoptionRepository"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/messages/responseMessage"
+	"github.com/xAutoBot/iqoption-sdk/src/repositories/iqoptionRepository"
 )
 
 func prepareConnection() {
