@@ -18,6 +18,11 @@ import (
 	"github.com/xAutoBot/iqoption-sdk/src/repositories/authenticationRepository"
 )
 
+const (
+	optionTypeBinary int = 1
+	optionTypeTurbo  int = 3
+)
+
 type IqOptionRepository struct {
 	websocketConnection *websocket.Conn
 	profile             profile.User
@@ -160,6 +165,13 @@ func (i *IqOptionRepository) GetPriceNow(activeID int) (responsePrice float64, r
 		time.Sleep(time.Millisecond)
 	}
 	return
+}
+
+func (i *IqOptionRepository) GetOptionTypeID(duration int) int {
+	if duration <= 5 {
+		return optionTypeTurbo
+	}
+	return optionTypeBinary
 }
 
 //Return the timestamp of the sum timeSyn with duration

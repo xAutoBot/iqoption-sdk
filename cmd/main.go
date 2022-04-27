@@ -16,18 +16,6 @@ import (
 	"github.com/xAutoBot/iqoption-sdk/src/repositories/iqoptionRepository"
 )
 
-const (
-	optionTypeBinary int = 1
-	optionTypeTurbo  int = 3
-)
-
-func GetOptionTypeID(duration int) int {
-	if duration <= 5 {
-		return optionTypeTurbo
-	}
-	return optionTypeBinary
-}
-
 func OpenOrder(messageToSend, responseOpenOrder chan string, activePriceNow float64, user profile.User, timeSync *int64) (orderID chan string, responseError chan error) {
 	go func() {
 		activeID := 1

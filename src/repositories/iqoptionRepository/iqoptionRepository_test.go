@@ -44,3 +44,28 @@ func TestGetPriceNow(t *testing.T) {
 	}
 
 }
+
+func TestGetOptionTypeID(t *testing.T) {
+	testes := []struct {
+		value int
+		want  int
+	}{
+		{value: 1, want: 3},
+		{value: 2, want: 3},
+		{value: 3, want: 3},
+		{value: 4, want: 3},
+		{value: 5, want: 3},
+		{value: 6, want: 1},
+		{value: 7, want: 1},
+		{value: 8, want: 1},
+		{value: 9, want: 1},
+	}
+
+	for _, teste := range testes {
+		typeId := connection.GetOptionTypeID(teste.value)
+		if typeId != teste.want {
+			t.Errorf(errors.New("Incorrrect responsee").Error())
+		}
+	}
+
+}
