@@ -183,22 +183,18 @@ func (i IqOptionRepository) GetExpirationTime(duration int) int64 {
 	return timeNowInt64
 }
 
-func SendMessage(websocketConnection *websocket.Conn, messageChan chan string) {
+func (i IqOptionRepository) SendMessage(message string) error {
 
-	for message := range messageChan {
-		log.Println("Sent =>", message)
-		err := websocketConnection.WriteMessage(websocket.TextMessage, []byte(message))
-		if err != nil {
-			log.Println("write:", err)
-			return
-		}
+	err := i.websocketConnection.WriteMessage(websocket.TextMessage, []byte(message))
+	if err != nil {
+		return err
 	}
-
+	return nil
 }
 
-func CloseConnection(websocketConnection *websocket.Conn) error {
+func (i IqOptionRepository) CloseConnection() error {
 	log.Print("closing conection")
-	err := websocketConnection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	err := i.websocketConnection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	if err != nil {
 		return err
 	}
