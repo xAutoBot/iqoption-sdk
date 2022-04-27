@@ -1,6 +1,7 @@
 package iqoptionRepository
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/xAutoBot/iqoption-sdk/src/configs"
@@ -24,11 +25,22 @@ func TestConnect(t *testing.T) {
 }
 
 func TestGetBalances(t *testing.T) {
-	if err != nil {
-		t.Errorf(err.Error())
-	}
+
 	_, err = connection.GetBalances()
 	if err != nil {
 		t.Errorf(err.Error())
 	}
+}
+
+func TestGetPriceNow(t *testing.T) {
+	activeId := 1
+	price, responsePriceErro := connection.GetPriceNow(activeId)
+
+	if responsePriceErro != nil {
+		t.Errorf(responsePriceErro.Error())
+	}
+	if price <= 0 {
+		t.Errorf(errors.New("price is zero").Error())
+	}
+
 }

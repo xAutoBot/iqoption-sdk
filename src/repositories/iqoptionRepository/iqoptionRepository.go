@@ -109,6 +109,7 @@ func (i IqOptionRepository) TimeSync() int64 {
 func (i *IqOptionRepository) startReadResponseMessage() {
 
 	go func() {
+		defer i.websocketConnection.Close()
 
 		for {
 			_, receivedMessageJson, _ := i.websocketConnection.ReadMessage()
@@ -133,30 +134,33 @@ func (i *IqOptionRepository) startReadResponseMessage() {
 	}()
 }
 
-// func (i *IqOptionRepository) GetPriceNow(activeID int) (responsePrice chan float64, responseError chan error) {
+func (i *IqOptionRepository) GetPriceNow(activeID int) (responsePrice float64, responseError error) {
 
-// 	i.candleGeneratedChan = make(chan []byte)
-// 	defer close(i.candleGeneratedChan)
+	i.candleGeneratedChan = make(chan []byte)
+	defer close(i.candleGeneratedChan)
 
-// 	candleSize := 5
-// 	sendMessageStartCandleGenerate, _ := messages.NewSendMessageStartCandleGenerate(activeID, candleSize).Json()
-// 	i.websocketConnection.WriteMessage(websocket.TextMessage, sendMessageStartCandleGenerate)
+	candleSize := 5
+	sendMessageStartCandleGenerate, _ := messages.NewSendMessageStartCandleGenerate(activeID, candleSize).Json()
+	i.websocketConnection.WriteMessage(websocket.TextMessage, sendMessageStartCandleGenerate)
 
-// 	responseGeneratedCandle := <-i.candleGeneratedChan
-// 	var responnseCandleGenerated responseMessage.ResponnseCandleGenerated
-// 	json.Unmarshal([]byte(candleJson), &responnseCandleGenerated)
-// 	if responnseCandleGenerated.MicroserviceName == "quotes" && responnseCandleGenerated.Msg.ActiveID == activeID {
-// 		responsePrice <- responnseCandleGenerated.Msg.Close
-// 		responseError <- nil
-// 		sendMessageStopCandleGenerate, _ := messages.NewSendMessageStopCandleGenerate(activeID, candleSize).Json()
-// 		messageToSend <- string(sendMessageStopCandleGenerate)
+	responseGeneratedCandle := <-i.candleGeneratedChan
+	var responnseCandleGenerated responseMessage.ResponnseCandleGenerated
+	json.Unmarshal([]byte(responseGeneratedCandle), &responnseCandleGenerated)
 
-// 		return
+	for index := 0; index < 100; index++ {
 
-// 	}
+		if responnseCandleGenerated.MicroserviceName == "quotes" && responnseCandleGenerated.Msg.ActiveID == activeID {
+			responsePrice = responnseCandleGenerated.Msg.Close
+			responseError = nil
+			sendMessageStopCandleGenerate, _ := messages.NewSendMessageStopCandleGenerate(activeID, candleSize).Json()
+			i.websocketConnection.WriteMessage(websocket.TextMessage, sendMessageStopCandleGenerate)
 
-// 	return
-// }
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	return
+}
 
 //Return the timestamp of the sum timeSyn with duration
 func (i *IqOptionRepository) GetExpirationTime(timeSyc int64, duration int) int64 {
