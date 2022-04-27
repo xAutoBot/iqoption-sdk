@@ -17,37 +17,52 @@ type ResponseLogin struct {
 	Message string
 }
 
-func GetSSID() (string, error) {
+func GetSSID() (responseSsid chan string, responseError chan error) {
+	responseSsid = make(chan string)
+	responseError = make(chan error)
 
-	requestBody, err := json.Marshal(map[string]string{
-		"identifier": configs.GetIqOptionEmail(),
-		"password":   configs.GetIqOptionPassword(),
-	})
+	go func() {
 
-	response, err := http.Post("https://"+configs.IqoptionAuthHOst+"/api/v2/login", "application/json", bytes.NewBuffer(requestBody))
+		requestBody, _ := json.Marshal(map[string]string{
+			"identifier": configs.GetIqOptionEmail(),
+			"password":   configs.GetIqOptionPassword(),
+		})
 
-	if err != nil {
-		log.Fatalf("An Error Occured %v", err)
-		return "", err
-	}
+		response, err := http.Post("https://"+configs.IqoptionAuthHOst+"/api/v2/login", "application/json", bytes.NewBuffer(requestBody))
 
-	defer response.Body.Close()
+		if err != nil {
+			log.Printf("An Error Occured %v", err)
+			responseSsid <- ""
+			responseError <- err
 
-	responseJson, err := ioutil.ReadAll(response.Body)
+			return
+		}
 
-	if err != nil {
-		log.Fatalf("An Error Occured %v", err)
-		return "", err
-	}
+		defer response.Body.Close()
 
-	var responseLogin ResponseLogin
-	err = json.Unmarshal(responseJson, &responseLogin)
-	log.Printf(string(responseJson))
+		responseJson, err := ioutil.ReadAll(response.Body)
 
-	if responseLogin.Code != "success" {
-		return "", errors.New(responseLogin.Message)
-	}
+		if err != nil {
+			log.Printf("An Error Occured %v", err)
+			responseSsid <- ""
+			responseError <- err
+			return
+		}
 
-	return string(responseLogin.Ssid), nil
+		var responseLogin ResponseLogin
+		err = json.Unmarshal(responseJson, &responseLogin)
 
+		if err != nil {
+			responseSsid <- ""
+			responseError <- err
+		}
+		if responseLogin.Code != "success" {
+			responseSsid <- ""
+			responseError <- errors.New(responseLogin.Message)
+			return
+		}
+		responseSsid <- string(responseLogin.Ssid)
+		responseError <- nil
+	}()
+	return
 }

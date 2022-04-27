@@ -7,7 +7,7 @@ type BinaryOptionsOpenOptionBody struct {
 	ActiveID      int     `json:"active_id"`
 	OptionTypeID  int     `json:"option_type_id"`
 	Direction     string  `json:"direction"`
-	Expired       int     `json:"expired"`
+	Expired       int64   `json:"expired"`
 	RefundValue   int     `json:"refund_value"`
 	Price         float64 `json:"price"`
 	Value         int     `json:"value"`
@@ -27,7 +27,7 @@ type sendMessageBinaryOptionsOpenOption struct {
 	Msg       binaryOptionsOpenOptionMsg `json:"msg"`
 }
 
-func NewBinaryOptionsOpenOptionBody(userBalanceId int, activeId int, optionTypeId int, direction string, expired int, refundValue int, price float64, value int, profitPercent int) BinaryOptionsOpenOptionBody {
+func NewBinaryOptionsOpenOptionBody(userBalanceId int, activeId int, optionTypeId int, direction string, expired int64, refundValue int, price float64, value int, profitPercent int) BinaryOptionsOpenOptionBody {
 
 	return BinaryOptionsOpenOptionBody{
 		UserBalanceID: userBalanceId,

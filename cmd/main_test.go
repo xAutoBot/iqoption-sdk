@@ -10,9 +10,6 @@ import (
 	"github.com/xAutoBot/iqoption-sdk/src/repositories/iqoptionRepository"
 )
 
-func prepareConnection() {
-
-}
 func TestGetExpirationTime(t *testing.T) {
 	testes := []struct {
 		timeSyn  int64
@@ -128,6 +125,26 @@ func TestGetBalances(t *testing.T) {
 			case "balances":
 				responseGetBalances <- receivedMessageJson
 			}
+		}
+	}
+}
+
+func TestOpenOrder(t *testing.T) {
+	websocketConnection, err := iqoptionRepository.Connect()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer websocketConnection.Close()
+
+	receivedMessage := make(chan string)
+	messageToSend := make(chan string)
+	go iqoptionRepository.OnMessage(websocketConnection, receivedMessage)
+	go iqoptionRepository.SendMessage(websocketConnection, messageToSend)
+
+	for {
+		select {
+		case receivedMessageJson := <-receivedMessage:
+			log.Println(receivedMessageJson)
 		}
 	}
 }
