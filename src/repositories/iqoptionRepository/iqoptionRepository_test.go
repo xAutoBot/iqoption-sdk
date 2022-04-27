@@ -69,3 +69,9 @@ func TestGetOptionTypeID(t *testing.T) {
 	}
 
 }
+
+func TestGetExpirationTime(t *testing.T) {
+
+	connection.GetExpirationTime(5)
+
+}

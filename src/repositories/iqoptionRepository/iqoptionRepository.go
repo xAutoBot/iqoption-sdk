@@ -175,10 +175,11 @@ func (i *IqOptionRepository) GetOptionTypeID(duration int) int {
 }
 
 //Return the timestamp of the sum timeSyn with duration
-func (i *IqOptionRepository) GetExpirationTime(timeSyc int64, duration int) int64 {
-	timeNow := fmt.Sprintf("%d", time.Unix(timeSyc, 0).Add(time.Minute*time.Duration(duration)).Unix())
+func (i IqOptionRepository) GetExpirationTime(duration int) int64 {
+	timeNow := fmt.Sprintf("%d", time.Unix(i.timeSyc, 0).Add(time.Minute*time.Duration(duration)).Unix())
 	timeNowRunes := string([]rune(timeNow)[0:10])
 	timeNowInt64, _ := strconv.ParseInt(timeNowRunes, 10, 64)
+
 	return timeNowInt64
 }
 
