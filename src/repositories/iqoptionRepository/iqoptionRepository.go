@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -30,6 +29,7 @@ type IqOptionRepository struct {
 	authenticatedChan   chan []byte
 	balancesChan        chan []byte
 	candleGeneratedChan chan []byte
+	dataOpenedOrderChan [50][]byte
 }
 
 var websocketHost = flag.String("addr", configs.IqoptionWebSocketHost, "http service address")
@@ -120,21 +120,27 @@ func (i *IqOptionRepository) startReadResponseMessage() {
 			_, receivedMessageJson, _ := i.websocketConnection.ReadMessage()
 			var receivedMessage messages.Message
 			json.Unmarshal(receivedMessageJson, &receivedMessage)
-			log.Printf("%s", receivedMessageJson)
 			switch receivedMessage.Name {
 			case "heartbeat":
 			case "timeSync":
 				var responseTimeSync responseMessage.TimeSync
 				json.Unmarshal(receivedMessageJson, &responseTimeSync)
 				i.timeSyc = responseTimeSync.Msg
-				println(i.timeSyc)
 			case "balances":
 				i.balancesChan <- receivedMessageJson
 			case "authenticated":
 				i.authenticatedChan <- receivedMessageJson
 			case "candle-generated":
 				i.candleGeneratedChan <- receivedMessageJson
+			case "option":
+				for index := 0; index < len(i.dataOpenedOrderChan); index++ {
+					if i.dataOpenedOrderChan[index] == nil {
+						i.dataOpenedOrderChan[index] = receivedMessageJson
+						break
+					}
+				}
 			}
+
 		}
 	}()
 }
@@ -142,7 +148,6 @@ func (i *IqOptionRepository) startReadResponseMessage() {
 func (i *IqOptionRepository) GetPriceNow(activeID int) (responsePrice float64, responseError error) {
 
 	i.candleGeneratedChan = make(chan []byte)
-	defer close(i.candleGeneratedChan)
 
 	candleSize := 5
 	sendMessageStartCandleGenerate, _ := messages.NewSendMessageStartCandleGenerate(activeID, candleSize).Json()
@@ -174,18 +179,39 @@ func (i *IqOptionRepository) GetOptionTypeID(duration int) int {
 	return optionTypeBinary
 }
 
-//Return the timestamp of the sum timeSyn with duration
-func (i IqOptionRepository) GetExpirationTime(duration int) int64 {
-	timeNow := fmt.Sprintf("%d", time.Unix(i.timeSyc, 0).Add(time.Minute*time.Duration(duration)).Unix())
-	timeNowRunes := string([]rune(timeNow)[0:10])
-	timeNowInt64, _ := strconv.ParseInt(timeNowRunes, 10, 64)
+//Return the timestamp of the sum timenow with duration
+func (i IqOptionRepository) GetExpirationTime(duration int) (int64, error) {
 
-	return timeNowInt64
+	if duration > 5 {
+		return 0, errors.New("max time duration is 5 minutes yet")
+	}
+
+	time.Local = time.UTC
+	timeNow := time.Now()
+	year := timeNow.Year()
+	month := timeNow.Month()
+	day := timeNow.Day()
+	hour := timeNow.Hour()
+	minute := timeNow.Minute() + duration
+	second := 0
+
+	if minute > 59 {
+		hour++
+		minute = minute - 60
+	}
+	if hour > 23 {
+		day++
+		hour = hour - 24
+	}
+
+	expirationTime, _ := time.Parse("2006/January/02 15:4:5", fmt.Sprintf("%v/%v/%v %v:%v:%v", year, month, day, hour, minute, second))
+
+	return expirationTime.Unix(), nil
 }
 
-func (i IqOptionRepository) SendMessage(message string) error {
-
-	err := i.websocketConnection.WriteMessage(websocket.TextMessage, []byte(message))
+func (i IqOptionRepository) SendMessage(message []byte) error {
+	log.Printf("sent => %s", message)
+	err := i.websocketConnection.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		return err
 	}
@@ -201,9 +227,47 @@ func (i IqOptionRepository) CloseConnection() error {
 	return nil
 }
 
-func ChangeBalance(websocketConnection *websocket.Conn, balance string) {
+func (i *IqOptionRepository) OpenOrder(activeId, duration int, investiment float64, direction string) (openedOrderData responseMessage.OpenOrderDataMsg, responseError error) {
 
-	messageChan := make(chan string)
-	messageChan <- balance
-	go SendMessage(websocketConnection, messageChan)
+	var openOrderResultDataMsg responseMessage.OpenOrderDataMsg
+
+	expirationTime, _ := i.GetExpirationTime(duration)
+	binaryOptionsOpenOptionBody := messages.BinaryOptionsOpenOptionBody{
+		UserBalanceID: i.profile.BalanceId,
+		ActiveID:      activeId,
+		OptionTypeID:  i.GetOptionTypeID(duration),
+		Direction:     direction,
+		Expired:       expirationTime,
+		RefundValue:   0,
+		Price:         investiment,
+		Value:         0,
+		ProfitPercent: 0,
+	}
+
+	binaryOptionsOpenOption := messages.NewSendMessageBinaryOptionsOpenOption(binaryOptionsOpenOptionBody)
+	binaryOptionsOpenOptionJson, _ := binaryOptionsOpenOption.Json()
+	i.SendMessage(binaryOptionsOpenOptionJson)
+
+	for {
+
+		for index := 0; index < len(i.dataOpenedOrderChan); index++ {
+			if i.dataOpenedOrderChan[index] == nil {
+				continue
+			}
+			var openOrderData responseMessage.OpenOrderData
+			json.Unmarshal(i.dataOpenedOrderChan[index], &openOrderData)
+
+			if openOrderData.RequestID == binaryOptionsOpenOption.RequestID {
+				i.dataOpenedOrderChan[index] = nil
+				if openOrderData.Status != 2000 {
+					return openOrderResultDataMsg, errors.New("Error on open order in iqoption")
+				}
+				return openOrderData.Msg, nil
+			}
+		}
+		time.Sleep(time.Second)
+	}
 }
+
+// {"name":"sendMessage","request_id":"59ce3396-1470-4709-bd3d-26793238537f", "msg":{"name":"binary-options.open-option","version":"1.0","body":{"user_balance_id":21263150,"active_id":1,"option_type_id":3,"direction":"call","expired":1651106945,"price":2}}}
+// {"name":"sendMessage","request_id":"59ce3396-1470-4709-bd3d-26793238537f", "msg":{"name":"binary-options.open-option","version":"1.0","body":{"user_balance_id":21263150,"active_id":1,"option_type_id":3,"direction":"call","expired":1651105800,"price":1}}}

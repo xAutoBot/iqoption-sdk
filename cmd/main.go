@@ -2,12 +2,9 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 
 	"github.com/xAutoBot/iqoption-sdk/src/configs"
 	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
@@ -16,45 +13,6 @@ import (
 	"github.com/xAutoBot/iqoption-sdk/src/repositories/iqoptionRepository"
 )
 
-func OpenOrder(messageToSend, responseOpenOrder chan string, activePriceNow float64, user profile.User, timeSync *int64) (orderID chan string, responseError chan error) {
-	go func() {
-		activeID := 1
-		var duration int = 5
-		investiment := 2.0
-		direction := "call"
-		activePayoutNow := 86
-
-		activePrice, _ := strconv.Atoi(strings.Replace(fmt.Sprintf("%f", activePriceNow), ".", "", -1))
-
-		binaryOptionsOpenOptionBody := messages.BinaryOptionsOpenOptionBody{
-			UserBalanceID: user.BalanceId,
-			ActiveID:      activeID,
-			OptionTypeID:  GetOptionTypeID(duration),
-			Direction:     direction,
-			Expired:       GetExpirationTime(*timeSync, duration),
-			RefundValue:   0,
-			Price:         investiment,
-			Value:         activePrice,
-			ProfitPercent: activePayoutNow,
-		}
-		binaryOptionsOpenOption := messages.NewSendMessageBinaryOptionsOpenOption(binaryOptionsOpenOptionBody)
-		binaryOptionsOpenOptionJson, _ := binaryOptionsOpenOption.Json()
-		messageToSend <- string(binaryOptionsOpenOptionJson)
-	}()
-
-	orderID = make(chan string)
-	responseError = make(chan error)
-
-	go func() {
-		for responseOpenOrderJson := range responseOpenOrder {
-			log.Println(responseOpenOrderJson)
-			responseError <- nil
-			orderID <- "evecimar"
-			return
-		}
-	}()
-	return
-}
 func Start() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
