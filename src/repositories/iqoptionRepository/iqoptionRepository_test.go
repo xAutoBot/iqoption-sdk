@@ -2,7 +2,6 @@ package iqoptionRepository
 
 import (
 	"errors"
-	"log"
 	"testing"
 
 	"github.com/xAutoBot/iqoption-sdk/src/configs"
@@ -94,22 +93,15 @@ func TestOpenOrder(t *testing.T) {
 	duration := 5
 	investiment := 2.00
 	direction := "call"
-	// priceNow, _ := connection.GetPriceNow(activeId)
-	// go connection.OpenOrder(activeId, duration, investiment, direction)
-	// go connection.OpenOrder(activeId, duration, investiment, direction)
-	// go connection.OpenOrder(activeId, duration, investiment, direction)
-	// go connection.OpenOrder(activeId, duration, investiment, direction)
-	// go connection.OpenOrder(activeId, duration, investiment, direction)
-	order, err := connection.OpenOrder(activeId, duration, investiment, direction)
 
-	// json := `{"name":"sendMessage","request_id":"4a45529c-5bb4-4b82-8c42-dae70a8244d2","local_time":7177585,"msg":{"body": {"profit_percent":0, "refund_value":0,"price": 1, "active_id": 1, "expired": 1651119300, "direction": "put", "option_type_id": 1, "user_balance_id": 21263150}, "name": "binary-options.open-option", "version": "1.0"}}`
-	// json := `{"name":"sendMessage","request_id":"4a45529c-5bb4-4b82-8c42-dae70a8244d2","local_time":7177585,"msg":{"name":"binary-options.open-option","version":"1.0","body":{"user_balance_id":21263150,"active_id":1,"option_type_id":1,"direction":"call","expired":1651119300,"refund_value":0,"price":2,"value":0,"profit_percent":0}}}`
-
-	// err := connection.SendMessage([]byte(json))
+	go connection.OpenOrder(activeId, duration, investiment, direction)
+	go connection.OpenOrder(activeId, duration, investiment, direction)
+	go connection.OpenOrder(activeId, duration, investiment, direction)
+	go connection.OpenOrder(activeId, duration, investiment, direction)
+	go connection.OpenOrder(activeId, duration, investiment, direction)
+	_, err := connection.OpenOrder(activeId, duration, investiment, direction)
 
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	orderJson, _ := order.Json()
-	log.Printf("%s ", orderJson)
 }
