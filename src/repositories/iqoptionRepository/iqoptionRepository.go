@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/xAutoBot/iqoption-sdk/src/configs"
 	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
@@ -23,13 +24,21 @@ const (
 )
 
 type IqOptionRepository struct {
-	websocketConnection *websocket.Conn
-	profile             profile.User
-	timeSyc             int64
-	authenticatedChan   chan []byte
-	balancesChan        chan []byte
-	candleGeneratedChan chan []byte
-	dataOpenedOrderChan [50][]byte
+	websocketConnection     *websocket.Conn
+	profile                 profile.User
+	timeSyc                 int64
+	authenticatedChan       chan []byte
+	balancesChan            chan []byte
+	candleGeneratedChan     chan []byte
+	dataOpenedOrderChan     [50][]byte
+	messageToSendChan       chan messageToSendStruct
+	messageToSendChanStatus chan messageToSendStruct
+}
+
+type messageToSendStruct struct {
+	RequestID string
+	Body      []byte
+	Error     error
 }
 
 var websocketHost = flag.String("addr", configs.IqoptionWebSocketHost, "http service address")
@@ -41,7 +50,7 @@ func (i *IqOptionRepository) authenticate(ssid string) error {
 	authenticateMessage := messages.NewAuthenticateMsg(ssid)
 	ssidBody := messages.NewAuthenticate(authenticateMessage)
 	ssidJson, _ := ssidBody.Json()
-	i.websocketConnection.WriteMessage(websocket.TextMessage, ssidJson)
+	i.SendMessage(ssidJson)
 
 	var authenticatedMessage responseMessage.Authenticated
 	json.Unmarshal(<-i.authenticatedChan, &authenticatedMessage)
@@ -61,7 +70,7 @@ func (i *IqOptionRepository) Connect(accountType string) (*IqOptionRepository, e
 
 	websocketUrl := url.URL{Scheme: "wss", Host: *websocketHost, Path: "/echo/websocket"}
 	log.Printf("connecting to %s", websocketUrl.String())
-
+	i.startSendMessageloop()
 	i.websocketConnection, _, err = websocket.DefaultDialer.Dial(websocketUrl.String(), nil)
 
 	if err != nil {
@@ -99,7 +108,7 @@ func (i *IqOptionRepository) GetBalances() ([]responseMessage.BalancesMsg, error
 
 	messageGetBalances := messages.NewSendMessageGetBalances()
 	messageGetBalancesJson, _ := messageGetBalances.Json()
-	i.websocketConnection.WriteMessage(websocket.TextMessage, messageGetBalancesJson)
+	i.SendMessage(messageGetBalancesJson)
 
 	var balanceMessage responseMessage.Balannces
 	json.Unmarshal(<-i.balancesChan, &balanceMessage)
@@ -151,7 +160,7 @@ func (i *IqOptionRepository) GetPriceNow(activeID int) (responsePrice float64, r
 
 	candleSize := 5
 	sendMessageStartCandleGenerate, _ := messages.NewSendMessageStartCandleGenerate(activeID, candleSize).Json()
-	i.websocketConnection.WriteMessage(websocket.TextMessage, sendMessageStartCandleGenerate)
+	i.SendMessage(sendMessageStartCandleGenerate)
 
 	responseGeneratedCandle := <-i.candleGeneratedChan
 	var responnseCandleGenerated responseMessage.ResponnseCandleGenerated
@@ -163,7 +172,7 @@ func (i *IqOptionRepository) GetPriceNow(activeID int) (responsePrice float64, r
 			responsePrice = responnseCandleGenerated.Msg.Close
 			responseError = nil
 			sendMessageStopCandleGenerate, _ := messages.NewSendMessageStopCandleGenerate(activeID, candleSize).Json()
-			i.websocketConnection.WriteMessage(websocket.TextMessage, sendMessageStopCandleGenerate)
+			i.SendMessage(sendMessageStopCandleGenerate)
 
 			return
 		}
@@ -209,13 +218,38 @@ func (i IqOptionRepository) GetExpirationTime(duration int) (int64, error) {
 	return expirationTime.Unix(), nil
 }
 
-func (i IqOptionRepository) SendMessage(message []byte) error {
-	log.Printf("sent => %s", message)
-	err := i.websocketConnection.WriteMessage(websocket.TextMessage, message)
-	if err != nil {
-		return err
+func (i *IqOptionRepository) startSendMessageloop() {
+
+	i.messageToSendChan = make(chan messageToSendStruct, 10)
+	i.messageToSendChanStatus = make(chan messageToSendStruct, 10)
+	go func() {
+		for {
+			messageToSendStruct := <-i.messageToSendChan
+
+			err := i.websocketConnection.WriteMessage(websocket.TextMessage, messageToSendStruct.Body)
+			messageToSendStruct.Error = nil
+			if err != nil {
+				messageToSendStruct.Error = err
+			}
+			i.messageToSendChanStatus <- messageToSendStruct
+		}
+	}()
+}
+func (i *IqOptionRepository) SendMessage(message []byte) error {
+	requestId := uuid.NewString()
+	i.messageToSendChan <- messageToSendStruct{
+		Body:      message,
+		RequestID: requestId,
+		Error:     nil,
 	}
-	return nil
+
+	for {
+		response := <-i.messageToSendChanStatus
+		if response.RequestID == requestId {
+			return response.Error
+		}
+		i.messageToSendChanStatus <- response
+	}
 }
 
 func (i IqOptionRepository) CloseConnection() error {
