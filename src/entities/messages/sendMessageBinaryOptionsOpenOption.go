@@ -64,6 +64,3 @@ func (s sendMessageBinaryOptionsOpenOption) Json() ([]byte, error) {
 	}
 	return j, nil
 }
-
-// {"name":"sendMessage","request_id":"1503","local_time":1370323,"msg":{"name":"binary-options.open-option","version":"1.0","body":{
-// 	"user_balance_id":21263150,"active_id":4,"option_type_id":1,"direction":"call","expired":1650372300,"refund_value":0,"price":1.0,"value":138410745,"profit_percent":81}}}

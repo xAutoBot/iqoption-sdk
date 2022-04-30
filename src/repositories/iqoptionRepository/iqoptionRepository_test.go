@@ -77,36 +77,48 @@ func TestGetExpirationTime(t *testing.T) {
 		timeStub string
 		want     int64
 	}{
-		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:29:50", want: 1231231},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:29:10", want: 1651267800},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:59:10", want: 1651269600},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:29:50", want: 1651267860},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:58:50", want: 1651269600},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 23:58:50", want: 1651276800},
+		{activeId: 1, duration: 1, timeStub: "2022/04/30 23:58:50", want: 1651363200},
+		{activeId: 1, duration: 1, timeStub: "2022/12/31 23:58:50", want: 1672531200},
+		{activeId: 1, duration: 2, timeStub: "2022/04/29 21:29:00", want: 1651267860},
+		{activeId: 1, duration: 3, timeStub: "2022/04/29 21:29:00", want: 1651267920},
+		{activeId: 1, duration: 4, timeStub: "2022/04/29 21:29:00", want: 1651267980},
+		{activeId: 2, duration: 5, timeStub: "2022/04/29 21:29:00", want: 1651268040},
+		{activeId: 2, duration: 15, timeStub: "2022/04/29 21:29:00", want: 1651268040},
+		{activeId: 2, duration: 61, timeStub: "2022/04/29 21:29:00", want: 0},
 	}
 
-	for _, teste := range testes {
+	for index, teste := range testes {
 		connection.time, _ = time.Parse("2006/01/02 15:4:5", teste.timeStub)
-		_, err := connection.GetExpirationTime(int(teste.duration))
-		if err != nil {
-			t.Errorf("%v", err.Error())
+		timestamp, _ := connection.GetExpirationTime(int(teste.duration))
+		if timestamp != teste.want {
+			t.Errorf("index %v duration is %v want %v received %v", index, teste.duration, teste.want, timestamp)
 		}
 
 	}
 }
 
-func TestOpenOrder(t *testing.T) {
-	activeId := 1
-	duration := 5
-	investiment := 2.00
-	direction := "call"
+// func TestOpenOrder(t *testing.T) {
+// 	activeId := 1
+// 	duration := 5
+// 	investiment := 2.00
+// 	direction := "call"
 
-	go connection.OpenOrder(activeId, duration, investiment, direction)
-	go connection.OpenOrder(activeId, duration, investiment, direction)
-	go connection.OpenOrder(activeId, duration, investiment, direction)
-	go connection.OpenOrder(activeId, duration, investiment, direction)
-	go connection.OpenOrder(activeId, duration, investiment, direction)
-	_, err := connection.OpenOrder(activeId, duration, investiment, direction)
+// 	go connection.OpenOrder(activeId, duration, investiment, direction)
+// 	go connection.OpenOrder(activeId, duration, investiment, direction)
+// 	go connection.OpenOrder(activeId, duration, investiment, direction)
+// 	go connection.OpenOrder(activeId, duration, investiment, direction)
+// 	go connection.OpenOrder(activeId, duration, investiment, direction)
+// 	_, err := connection.OpenOrder(activeId, duration, investiment, direction)
 
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-}
+// 	if err != nil {
+// 		t.Errorf(err.Error())
+// 	}
+// }
 
 func TestGetDigitalInstrumentID(t *testing.T) {
 	testes := []struct {
@@ -118,6 +130,7 @@ func TestGetDigitalInstrumentID(t *testing.T) {
 	}{
 		{activeId: 1, duration: 1, direction: "call", timeStub: "2022/04/29 20:31:25", want: "do1A20220429D203200T1MCSPT"},
 		{activeId: 1, duration: 1, direction: "call", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D203300T1MCSPT"},
+		{activeId: 1, duration: 1, direction: "call", timeStub: "2022/04/29 20:59:10", want: "do1A20220429D210000T1MCSPT"},
 		{activeId: 1, duration: 1, direction: "put", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D203300T1MPSPT"},
 		{activeId: 1, duration: 5, direction: "call", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D203500T5MCSPT"},
 		{activeId: 1, duration: 5, direction: "put", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D203500T5MPSPT"},
@@ -127,6 +140,7 @@ func TestGetDigitalInstrumentID(t *testing.T) {
 		{activeId: 1, duration: 5, direction: "call", timeStub: "2022/04/29 23:57:44", want: "do1A20220430D000000T5MCSPT"},
 		{activeId: 1, duration: 5, direction: "call", timeStub: "2022/12/31 23:57:44", want: "do1A20230101D000000T5MCSPT"},
 		{activeId: 1, duration: 15, direction: "call", timeStub: "2022/12/31 23:57:44", want: "do1A20230101D000000T15MCSPT"},
+		{activeId: 1, duration: 15, direction: "call", timeStub: "2022/11/30 23:57:44", want: "do1A20221201D000000T15MCSPT"},
 	}
 
 	for _, teste := range testes {
