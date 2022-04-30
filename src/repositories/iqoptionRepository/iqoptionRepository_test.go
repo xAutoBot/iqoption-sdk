@@ -3,6 +3,7 @@ package iqoptionRepository
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/xAutoBot/iqoption-sdk/src/configs"
 )
@@ -71,16 +72,17 @@ func TestGetOptionTypeID(t *testing.T) {
 
 func TestGetExpirationTime(t *testing.T) {
 	testes := []struct {
-		expiration int
-		wantError  error
+		activeId uint8
+		duration uint8
+		timeStub string
+		want     int64
 	}{
-		{expiration: 1, wantError: nil},
-		{expiration: 4, wantError: nil},
-		{expiration: 5, wantError: nil},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:29:50", want: 1231231},
 	}
 
 	for _, teste := range testes {
-		_, err := connection.GetExpirationTime(teste.expiration)
+		connection.time, _ = time.Parse("2006/01/02 15:4:5", teste.timeStub)
+		_, err := connection.GetExpirationTime(int(teste.duration))
 		if err != nil {
 			t.Errorf("%v", err.Error())
 		}
@@ -103,5 +105,38 @@ func TestOpenOrder(t *testing.T) {
 
 	if err != nil {
 		t.Errorf(err.Error())
+	}
+}
+
+func TestGetDigitalInstrumentID(t *testing.T) {
+	testes := []struct {
+		activeId  uint8
+		duration  uint8
+		direction string
+		timeStub  string
+		want      string
+	}{
+		{activeId: 1, duration: 1, direction: "call", timeStub: "2022/04/29 20:31:25", want: "do1A20220429D203200T1MCSPT"},
+		{activeId: 1, duration: 1, direction: "call", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D203300T1MCSPT"},
+		{activeId: 1, duration: 1, direction: "put", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D203300T1MPSPT"},
+		{activeId: 1, duration: 5, direction: "call", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D203500T5MCSPT"},
+		{activeId: 1, duration: 5, direction: "put", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D203500T5MPSPT"},
+		{activeId: 1, duration: 15, direction: "put", timeStub: "2022/04/29 20:31:44", want: "do1A20220429D204500T15MPSPT"},
+		{activeId: 1, duration: 15, direction: "call", timeStub: "2022/04/29 20:00:44", want: "do1A20220429D201500T15MCSPT"},
+		{activeId: 1, duration: 5, direction: "call", timeStub: "2022/04/29 23:57:44", want: "do1A20220430D000000T5MCSPT"},
+		{activeId: 1, duration: 5, direction: "call", timeStub: "2022/04/29 23:57:44", want: "do1A20220430D000000T5MCSPT"},
+		{activeId: 1, duration: 5, direction: "call", timeStub: "2022/12/31 23:57:44", want: "do1A20230101D000000T5MCSPT"},
+		{activeId: 1, duration: 15, direction: "call", timeStub: "2022/12/31 23:57:44", want: "do1A20230101D000000T15MCSPT"},
+	}
+
+	for _, teste := range testes {
+		connection.time, _ = time.Parse("2006/01/02 15:4:5", teste.timeStub)
+		expiration, err := connection.GetDigitalInstrumentID(teste.activeId, teste.duration, teste.direction)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+		if expiration != teste.want {
+			t.Errorf("duration is %d. I want %s but response is %s", teste.duration, teste.want, expiration)
+		}
 	}
 }
