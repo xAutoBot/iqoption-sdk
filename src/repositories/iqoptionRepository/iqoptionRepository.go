@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"net/url"
 	"strings"
 	"time"
@@ -201,52 +202,54 @@ func (i *IqOptionRepository) GetOptionTypeID(duration int) int {
 //Return the timestamp of the sum timenow with duration
 func (i IqOptionRepository) GetExpirationTime(duration int) (int64, error) {
 
-	if duration > 5 {
-		return 0, errors.New("max time duration is 5 minutes yet")
-	}
-
 	timeZone := time.UTC
 	timeNow := i.Time(timeZone)
-	year := timeNow.Year()
-	month := timeNow.Month()
-	day := timeNow.Day()
-	hour := timeNow.Hour()
-	minute := timeNow.Minute()
-	second := timeNow.Second()
 
-	switch {
-	case duration == 1:
-		if second >= 40 {
-			minute += 2
+	expirations := []time.Time{}
+
+	if duration <= 5 {
+		expirationTime := time.Date(timeNow.Year(), timeNow.Month(), timeNow.Day(), timeNow.Hour(), timeNow.Minute(), 0, 0, timeZone)
+
+		if expirationTime.Add(time.Minute).Unix()-timeNow.Unix() > 30 {
+			expirationTime = expirationTime.Add(time.Minute)
 		} else {
-			minute++
+			expirationTime = expirationTime.Add(time.Minute * 2)
 		}
-	case duration > 1:
-		minute += duration
-	}
-	second = 0
+		for range [5]int{} {
+			expirations = append(expirations, expirationTime)
+			expirationTime = expirationTime.Add(time.Minute)
 
-	lastDayOfMonth := getLastDayOfMonth(year, int(month), timeZone)
-	if minute > 59 {
-		hour++
-		minute = minute - 60
+		}
 	}
-	if hour > 23 {
-		day++
-		hour = hour - 24
+	timeNow = i.Time(timeZone)
+	expirationTime := time.Date(timeNow.Year(), timeNow.Month(), timeNow.Day(), timeNow.Hour(), timeNow.Minute(), 0, 0, timeZone)
+	if duration > 5 {
+		for index := 0; index < 50; index++ {
+			minute := expirationTime.Minute()
+			if minute%15 == 0 {
+				expirations = append(expirations, expirationTime)
+				index++
+			}
+			expirationTime = expirationTime.Add(time.Minute)
+		}
 	}
-	if day > lastDayOfMonth {
-		month++
-		day = day - lastDayOfMonth
+	secodsTocloses := []int64{}
+	for _, expiration := range expirations {
+		remaning := (expiration.Unix() - i.Time(timeZone).Unix())
+		secodsToclose := math.Abs(float64(remaning - int64(60)*int64(duration)))
+		secodsTocloses = append(secodsTocloses, int64(secodsToclose))
 	}
-	if month > 12 {
-		year++
-		month = month - 12
-	}
-	second = 0
-	expirationTime, _ := time.Parse("2006/January/2 15:4:5", fmt.Sprintf("%v/%v/%v %v:%v:%v", year, month, day, hour, minute, second))
 
-	return expirationTime.Unix(), nil
+	minimuValue := secodsTocloses[0]
+	minimuValueIndex := 0
+	for index, secondToClose := range secodsTocloses {
+		if secondToClose < minimuValue {
+			minimuValue = secondToClose
+			minimuValueIndex = index
+		}
+	}
+
+	return expirations[minimuValueIndex].Unix(), nil
 }
 
 func (i IqOptionRepository) Time(timeZone *time.Location) time.Time {
@@ -417,7 +420,10 @@ func (i *IqOptionRepository) OpenOrder(activeId, duration int, investiment float
 			if openOrderData.RequestID == binaryOptionsOpenOption.RequestID {
 				i.dataOpenedOrderChan[index] = nil
 				if openOrderData.Status != 2000 {
-					return openOrderResultDataMsg, errors.New("Error on open order in iqoption")
+					return openOrderResultDataMsg, errors.New("error on open order in iqoption")
+				}
+				if openOrderData.Status == 4103 {
+					return openOrderResultDataMsg, errors.New("error on open order in iqoption. probably the active is closed")
 				}
 				return openOrderData.Msg, nil
 			}

@@ -75,50 +75,69 @@ func TestGetExpirationTime(t *testing.T) {
 		activeId uint8
 		duration uint8
 		timeStub string
-		want     int64
+		want     string
 	}{
-		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:29:10", want: 1651267800},
-		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:59:10", want: 1651269600},
-		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:29:50", want: 1651267860},
-		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:58:50", want: 1651269600},
-		{activeId: 1, duration: 1, timeStub: "2022/04/29 23:58:50", want: 1651276800},
-		{activeId: 1, duration: 1, timeStub: "2022/04/30 23:58:50", want: 1651363200},
-		{activeId: 1, duration: 1, timeStub: "2022/12/31 23:58:50", want: 1672531200},
-		{activeId: 1, duration: 2, timeStub: "2022/04/29 21:29:00", want: 1651267860},
-		{activeId: 1, duration: 3, timeStub: "2022/04/29 21:29:00", want: 1651267920},
-		{activeId: 1, duration: 4, timeStub: "2022/04/29 21:29:00", want: 1651267980},
-		{activeId: 2, duration: 5, timeStub: "2022/04/29 21:29:00", want: 1651268040},
-		{activeId: 2, duration: 15, timeStub: "2022/04/29 21:29:00", want: 1651268040},
-		{activeId: 2, duration: 61, timeStub: "2022/04/29 21:29:00", want: 0},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:29:10", want: "2022/04/29 21:30:00"},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:59:10", want: "2022/04/29 22:00:00"},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:29:50", want: "2022/04/29 21:31:00"},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 21:58:50", want: "2022/04/29 22:00:00"},
+		{activeId: 1, duration: 1, timeStub: "2022/04/29 23:58:50", want: "2022/04/30 00:00:00"},
+		{activeId: 1, duration: 1, timeStub: "2022/04/30 23:58:50", want: "2022/05/01 00:00:00"},
+		{activeId: 1, duration: 1, timeStub: "2022/12/31 23:58:50", want: "2023/01/01 00:00:00"},
+		{activeId: 1, duration: 2, timeStub: "2022/04/29 21:29:00", want: "2022/04/29 21:31:00"},
+		{activeId: 1, duration: 3, timeStub: "2022/04/29 21:29:00", want: "2022/04/29 21:32:00"},
+		{activeId: 1, duration: 4, timeStub: "2022/04/29 21:29:00", want: "2022/04/29 21:33:00"},
+		{activeId: 2, duration: 5, timeStub: "2022/04/29 21:29:00", want: "2022/04/29 21:34:00"},
+		{activeId: 2, duration: 1, timeStub: "2022/04/30 09:35:13", want: "2022/04/30 09:36:00"},
+		{activeId: 2, duration: 1, timeStub: "2022/04/30 09:35:50", want: "2022/04/30 09:37:00"},
+		{activeId: 2, duration: 2, timeStub: "2022/04/30 09:35:13", want: "2022/04/30 09:37:00"},
+		{activeId: 2, duration: 3, timeStub: "2022/04/30 09:35:13", want: "2022/04/30 09:38:00"},
+		{activeId: 2, duration: 4, timeStub: "2022/04/30 09:35:13", want: "2022/04/30 09:39:00"},
+		{activeId: 2, duration: 5, timeStub: "2022/04/30 09:35:13", want: "2022/04/30 09:40:00"},
+		{activeId: 2, duration: 15, timeStub: "2022/04/30 09:35:31", want: "2022/04/30 09:45:00"},
+		{activeId: 2, duration: 10, timeStub: "2022/04/30 09:35:31", want: "2022/04/30 09:45:00"},
+
+		{activeId: 2, duration: 1, timeStub: "2022/04/30 17:59:48", want: "2022/04/30 18:01:00"},
+		{activeId: 2, duration: 2, timeStub: "2022/04/30 17:59:48", want: "2022/04/30 18:02:00"},
+		{activeId: 2, duration: 3, timeStub: "2022/04/30 17:59:48", want: "2022/04/30 18:03:00"},
+		{activeId: 2, duration: 4, timeStub: "2022/04/30 17:59:48", want: "2022/04/30 18:04:00"},
+		{activeId: 2, duration: 5, timeStub: "2022/04/30 17:59:48", want: "2022/04/30 18:05:00"},
+		{activeId: 2, duration: 15, timeStub: "2022/04/30 17:59:48", want: "2022/04/30 18:15:00"},
+		{activeId: 2, duration: 30, timeStub: "2022/04/30 17:59:48", want: "2022/04/30 18:30:00"},
+		{activeId: 2, duration: 60, timeStub: "2022/04/30 17:59:48", want: "2022/04/30 18:45:00"},
+
+		{activeId: 2, duration: 1, timeStub: "2022/05/01 14:28:04", want: "2022/05/01 14:29:00"},
+		{activeId: 2, duration: 2, timeStub: "2022/05/01 14:28:04", want: "2022/05/01 14:30:00"},
+		{activeId: 2, duration: 3, timeStub: "2022/05/01 14:28:04", want: "2022/05/01 14:31:00"},
+		{activeId: 2, duration: 4, timeStub: "2022/05/01 14:28:04", want: "2022/05/01 14:32:00"},
+		{activeId: 2, duration: 5, timeStub: "2022/05/01 14:28:04", want: "2022/05/01 14:33:00"},
+		{activeId: 2, duration: 15, timeStub: "2022/05/01 14:28:04", want: "2022/05/01 14:45:00"},
+		{activeId: 2, duration: 30, timeStub: "2022/05/01 14:28:04", want: "2022/05/01 15:00:00"},
 	}
 
 	for index, teste := range testes {
 		connection.time, _ = time.Parse("2006/01/02 15:4:5", teste.timeStub)
 		timestamp, _ := connection.GetExpirationTime(int(teste.duration))
-		if timestamp != teste.want {
-			t.Errorf("index %v duration is %v want %v received %v", index, teste.duration, teste.want, timestamp)
+		wantInTimeStamp, _ := time.Parse("2006/01/02 15:4:5", teste.want)
+		if timestamp != wantInTimeStamp.Unix() {
+			t.Errorf("index %v duration is %v want %v received %v", index, teste.duration, teste.want, time.Unix(timestamp, 0).Format("2006/01/02 15:04:05"))
 		}
 
 	}
 }
 
-// func TestOpenOrder(t *testing.T) {
-// 	activeId := 1
-// 	duration := 5
-// 	investiment := 2.00
-// 	direction := "call"
+func TestOpenOrder(t *testing.T) {
+	activeId := 76
+	duration := 60
+	investiment := 2.00
+	direction := "call"
 
-// 	go connection.OpenOrder(activeId, duration, investiment, direction)
-// 	go connection.OpenOrder(activeId, duration, investiment, direction)
-// 	go connection.OpenOrder(activeId, duration, investiment, direction)
-// 	go connection.OpenOrder(activeId, duration, investiment, direction)
-// 	go connection.OpenOrder(activeId, duration, investiment, direction)
-// 	_, err := connection.OpenOrder(activeId, duration, investiment, direction)
+	_, err := connection.OpenOrder(activeId, duration, investiment, direction, false)
 
-// 	if err != nil {
-// 		t.Errorf(err.Error())
-// 	}
-// }
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+}
 
 func TestGetDigitalInstrumentID(t *testing.T) {
 	testes := []struct {

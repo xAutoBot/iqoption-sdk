@@ -44,3 +44,10 @@ func (o OpenOrderDataMsg) Json() ([]byte, error) {
 	}
 	return j, nil
 }
+func (o OpenOrderData) Json() []byte {
+	j, err := json.Marshal(o)
+	if err != nil {
+		return nil
+	}
+	return j
+}
