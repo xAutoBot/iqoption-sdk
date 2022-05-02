@@ -37,6 +37,8 @@ type IqOptionRepository struct {
 	messageToSendChan          chan messageToSendStruct
 	messageToSendChanStatus    chan messageToSendStruct
 	time                       time.Time
+	clientPriceGeneratedChan   [50][]byte
+	initializationDataChan     [50][]byte
 }
 
 type messageToSendStruct struct {
@@ -133,6 +135,7 @@ func (i *IqOptionRepository) startReadResponseMessage() {
 			_, receivedMessageJson, _ := i.websocketConnection.ReadMessage()
 			var receivedMessage messages.Message
 			json.Unmarshal(receivedMessageJson, &receivedMessage)
+			log.Printf("%s", receivedMessageJson)
 			switch receivedMessage.Name {
 			case "heartbeat":
 			case "timeSync":
@@ -144,6 +147,7 @@ func (i *IqOptionRepository) startReadResponseMessage() {
 			case "authenticated":
 				i.authenticatedChan <- receivedMessageJson
 			case "candle-generated":
+				log.Printf("%s", receivedMessageJson)
 				i.candleGeneratedChan <- receivedMessageJson
 			case "option":
 				for index := 0; index < len(i.dataOpenedOrderChan); index++ {
@@ -156,6 +160,20 @@ func (i *IqOptionRepository) startReadResponseMessage() {
 				for index := 0; index < len(i.dataOpenedDigitalOrderChan); index++ {
 					if i.dataOpenedDigitalOrderChan[index] == nil {
 						i.dataOpenedDigitalOrderChan[index] = receivedMessageJson
+						break
+					}
+				}
+			case "client-price-generated":
+				for index := 0; index < len(i.clientPriceGeneratedChan); index++ {
+					if i.clientPriceGeneratedChan[index] == nil {
+						i.clientPriceGeneratedChan[index] = receivedMessageJson
+						break
+					}
+				}
+			case "initialization-data":
+				for index := 0; index < len(i.initializationDataChan); index++ {
+					if i.initializationDataChan[index] == nil {
+						i.initializationDataChan[index] = receivedMessageJson
 						break
 					}
 				}
@@ -173,11 +191,11 @@ func (i *IqOptionRepository) GetPriceNow(activeID int) (responsePrice float64, r
 	sendMessageStartCandleGenerate, _ := messages.NewSendMessageStartCandleGenerate(activeID, candleSize).Json()
 	i.SendMessage(sendMessageStartCandleGenerate)
 
-	responseGeneratedCandle := <-i.candleGeneratedChan
-	var responnseCandleGenerated responseMessage.ResponnseCandleGenerated
-	json.Unmarshal([]byte(responseGeneratedCandle), &responnseCandleGenerated)
-
 	for index := 0; index < 100; index++ {
+
+		responseGeneratedCandle := <-i.candleGeneratedChan
+		var responnseCandleGenerated responseMessage.ResponnseCandleGenerated
+		json.Unmarshal([]byte(responseGeneratedCandle), &responnseCandleGenerated)
 
 		if responnseCandleGenerated.MicroserviceName == "quotes" && responnseCandleGenerated.Msg.ActiveID == activeID {
 			responsePrice = responnseCandleGenerated.Msg.Close
@@ -264,6 +282,7 @@ func getLastDayOfMonth(year, month int, timeZone *time.Location) int {
 	return time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, timeZone).Day()
 }
 func (i IqOptionRepository) GetDiginalExpirationTime(duration uint8) (time.Time, error) {
+
 	timeZone := time.UTC
 	timeNow := i.Time(timeZone)
 	year := timeNow.Year()
@@ -351,10 +370,11 @@ func (i *IqOptionRepository) startSendMessageloop() {
 	go func() {
 		for {
 			messageToSendStruct := <-i.messageToSendChan
-
+			log.Printf("sent -> %s", messageToSendStruct.Body)
 			err := i.websocketConnection.WriteMessage(websocket.TextMessage, messageToSendStruct.Body)
 			messageToSendStruct.Error = nil
 			if err != nil {
+				log.Fatalf(messageToSendStruct.Error.Error())
 				messageToSendStruct.Error = err
 			}
 			i.messageToSendChanStatus <- messageToSendStruct
@@ -454,21 +474,44 @@ func (i IqOptionRepository) GetDigitalInstrumentID(activeId, duration uint8, dir
 
 	return fmt.Sprintf("do%vA%vT%vM%vSPT", activeId, dateTimeFormated, duration, action), nil
 }
-func (i *IqOptionRepository) OpenDigitalOrder(activeId, duration int, investiment float64, direction string) (openedDigitalOrderData responseMessage.OpenDigitalOrderDataMsg, responseError error) {
-	var openDigitalOrderResultDataMsg responseMessage.OpenDigitalOrderDataMsg
 
-	instrumentID := "teste"
-	indestiment := "2.5"
-	instrumentIndex := 1231231
-	assetId := 12345
-	// expirationTime, _ := i.GetExpirationTime(duration)
+func (i *IqOptionRepository) GetInstrumentIndex(activeID int) (indexInstrument int, err error) {
+
+	sendMessageStartPriceSplitterClientPriceGenerated, _ := messages.NewSendMessageStartPriceSplitterClientPriceGenerated(activeID).Json()
+	i.SendMessage(sendMessageStartPriceSplitterClientPriceGenerated)
+
+	for {
+		for index := 0; index < len(i.clientPriceGeneratedChan); index++ {
+			if i.clientPriceGeneratedChan[index] == nil {
+				continue
+			}
+			var responseClientPriceGenerated responseMessage.ClientPriceGenerated
+			json.Unmarshal([]byte(i.clientPriceGeneratedChan[index]), &responseClientPriceGenerated)
+
+			if responseClientPriceGenerated.MicroserviceName == "price-splitter" && responseClientPriceGenerated.Msg.AssetID == activeID {
+				i.clientPriceGeneratedChan[index] = nil
+				indexInstrument = responseClientPriceGenerated.Msg.InstrumentIndex
+				err = nil
+				sendMessageStopClientPriceGenerated, _ := messages.NewSendMessageStopPriceSplitterClientPriceGenerated(activeID).Json()
+				i.SendMessage(sendMessageStopClientPriceGenerated)
+				return
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}
+	return
+}
+
+func (i *IqOptionRepository) OpenDigitalOrder(instrumentId string, activeId, instrumentIndex int, investiment float64, direction string) (openedDigitalOrderData responseMessage.OpenDigitalOrderDataMsg, responseError error) {
+
+	var openDigitalOrderResultDataMsg responseMessage.OpenDigitalOrderDataMsg
 
 	binaryOptionsOpenDigitalBody := messages.BinaryOptionsOpenDigitalBody{
 		UserBalanceID:   i.profile.BalanceId,
-		InstrumentID:    instrumentID,
-		Amount:          indestiment,
+		InstrumentID:    instrumentId,
+		Amount:          fmt.Sprintf("%v", investiment),
 		InstrumentIndex: instrumentIndex,
-		AssetID:         assetId,
+		AssetID:         activeId,
 	}
 
 	binaryOptionsOpenDigital := messages.NewSendMessageBinaryOptionsOpenDigital(binaryOptionsOpenDigitalBody)
@@ -486,11 +529,36 @@ func (i *IqOptionRepository) OpenDigitalOrder(activeId, duration int, investimen
 
 			if openDigitalOrderData.RequestID == binaryOptionsOpenDigital.RequestID {
 				i.dataOpenedOrderChan[index] = nil
-				if openDigitalOrderData.Status != 2000 {
-					return openDigitalOrderResultDataMsg, errors.New("Error on open order in iqoption")
+				switch openDigitalOrderData.Status {
+				case 2000:
+					return openDigitalOrderData.Msg, nil
+				case 5000:
+					return openDigitalOrderResultDataMsg, errors.New("error on open order in iqoption. Probably asset is closed")
+				default:
+					return openDigitalOrderResultDataMsg, errors.New("error on open order in iqoption")
 				}
-				return openDigitalOrderData.Msg, nil
+
 			}
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func (i *IqOptionRepository) GetAllActiveInfo() (responseMessage.InitializationData, error) {
+
+	sendGetAllActiveInfo := messages.NewSendMessageGetInitializationData()
+	sendGetAllActiveInfoJson, _ := sendGetAllActiveInfo.Json()
+	i.SendMessage(sendGetAllActiveInfoJson)
+
+	for {
+
+		for index := 0; index < len(i.initializationDataChan); index++ {
+			if i.initializationDataChan[index] == nil {
+				continue
+			}
+			var initializationData responseMessage.ResponseInitializationData
+			json.Unmarshal(i.initializationDataChan[index], &initializationData)
+			return initializationData.InitializationData, nil
 		}
 		time.Sleep(time.Second)
 	}

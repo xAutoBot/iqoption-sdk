@@ -2,6 +2,7 @@ package iqoptionRepository
 
 import (
 	"errors"
+	"log"
 	"testing"
 	"time"
 
@@ -132,7 +133,7 @@ func TestOpenOrder(t *testing.T) {
 	investiment := 2.00
 	direction := "call"
 
-	_, err := connection.OpenOrder(activeId, duration, investiment, direction, false)
+	_, err := connection.OpenOrder(activeId, duration, investiment, direction)
 
 	if err != nil {
 		t.Errorf(err.Error())
@@ -171,5 +172,41 @@ func TestGetDigitalInstrumentID(t *testing.T) {
 		if expiration != teste.want {
 			t.Errorf("duration is %d. I want %s but response is %s", teste.duration, teste.want, expiration)
 		}
+	}
+}
+
+func TestGetAllActiveInfo(t *testing.T) {
+
+	_, err := connection.GetAllActiveInfo()
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+}
+
+func TestOpenDigitalOrder(t *testing.T) {
+	activeId := 1
+	duration := 15
+	investiment := 2.00
+	direction := "call"
+	instrumentId, _ := connection.GetDigitalInstrumentID(uint8(activeId), uint8(duration), direction)
+	instrumentIndex, _ := connection.GetInstrumentIndex(activeId)
+
+	orderID, err := connection.OpenDigitalOrder(instrumentId, activeId, instrumentIndex, investiment, direction)
+
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	orderStr, _ := orderID.Json()
+	t.Logf("%s", orderStr)
+}
+
+func TestGetInstrumentIndex(t *testing.T) {
+
+	activeID := 85
+	instrumentIndex, _ := connection.GetInstrumentIndex(activeID)
+	log.Println(instrumentIndex)
+	for {
+		time.Sleep(time.Second)
 	}
 }
