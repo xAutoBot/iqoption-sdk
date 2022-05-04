@@ -9,11 +9,13 @@ import (
 	"math"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/xAutoBot/iqoption-sdk/src/configs"
+	"github.com/xAutoBot/iqoption-sdk/src/entities/active"
 	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
 	"github.com/xAutoBot/iqoption-sdk/src/entities/messages/responseMessage"
 	"github.com/xAutoBot/iqoption-sdk/src/entities/profile"
@@ -39,6 +41,7 @@ type IqOptionRepository struct {
 	time                       time.Time
 	clientPriceGeneratedChan   [50][]byte
 	initializationDataChan     [50][]byte
+	underlyingDataChan         [50][]byte
 }
 
 type messageToSendStruct struct {
@@ -174,6 +177,13 @@ func (i *IqOptionRepository) startReadResponseMessage() {
 				for index := 0; index < len(i.initializationDataChan); index++ {
 					if i.initializationDataChan[index] == nil {
 						i.initializationDataChan[index] = receivedMessageJson
+						break
+					}
+				}
+			case "underlying-list":
+				for index := 0; index < len(i.underlyingDataChan); index++ {
+					if i.underlyingDataChan[index] == nil {
+						i.underlyingDataChan[index] = receivedMessageJson
 						break
 					}
 				}
@@ -543,9 +553,33 @@ func (i *IqOptionRepository) OpenDigitalOrder(instrumentId string, activeId, ins
 		time.Sleep(time.Second)
 	}
 }
+func (i *IqOptionRepository) GetAllActiveDigitalInfo() (responseMessage.UnderlyingData, error) {
+	sendMessageGetAllDigitalInfo := messages.NewSendMessageDigitalOptionInstrumentsGetUnderlyingList()
+	sendMessageGetAllDigitalInfoJson, _ := sendMessageGetAllDigitalInfo.Json()
+	i.SendMessage(sendMessageGetAllDigitalInfoJson)
 
-func (i *IqOptionRepository) GetAllActiveInfo() (responseMessage.InitializationData, error) {
+	for {
 
+		for index := 0; index < len(i.underlyingDataChan); index++ {
+			if i.underlyingDataChan[index] == nil {
+				continue
+			}
+			var underlyingList responseMessage.ResponseUnderlyingList
+			json.Unmarshal(i.underlyingDataChan[index], &underlyingList)
+
+			if underlyingList.RequestID == sendMessageGetAllDigitalInfo.RequestID {
+				i.underlyingDataChan[index] = nil
+				if underlyingList.Status == 2000 {
+					return underlyingList.UnderlyingData, nil
+				}
+				return responseMessage.UnderlyingData{}, errors.New("error on get active digital info ")
+			}
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func (i *IqOptionRepository) GetAllActiveBinaryInfo() (responseMessage.InitializationData, error) {
 	sendGetAllActiveInfo := messages.NewSendMessageGetInitializationData()
 	sendGetAllActiveInfoJson, _ := sendGetAllActiveInfo.Json()
 	i.SendMessage(sendGetAllActiveInfoJson)
@@ -558,8 +592,72 @@ func (i *IqOptionRepository) GetAllActiveInfo() (responseMessage.InitializationD
 			}
 			var initializationData responseMessage.ResponseInitializationData
 			json.Unmarshal(i.initializationDataChan[index], &initializationData)
-			return initializationData.InitializationData, nil
+
+			if initializationData.RequestID == sendGetAllActiveInfo.RequestID {
+				i.initializationDataChan[index] = nil
+
+				return initializationData.InitializationData, nil
+			}
 		}
 		time.Sleep(time.Second)
 	}
+}
+
+func (i *IqOptionRepository) GetAllActiveInfo() (active.ActiveInfo, error) {
+
+	allActiveDigitalInfoChan := make(chan responseMessage.UnderlyingData)
+	allActiveBinaryInfoChan := make(chan responseMessage.InitializationData)
+	allActiveDigitalInfoErrChan := make(chan error)
+	allActiveBinaryInfoErrChan := make(chan error)
+
+	go func() {
+		allActiveDigitalInfo, err := i.GetAllActiveDigitalInfo()
+		allActiveDigitalInfoErrChan <- err
+		allActiveDigitalInfoChan <- allActiveDigitalInfo
+	}()
+	go func() {
+		allActiveBinaryInfo, err := i.GetAllActiveBinaryInfo()
+		allActiveBinaryInfoErrChan <- err
+		allActiveBinaryInfoChan <- allActiveBinaryInfo
+	}()
+	allActiveDigitalInfoErr := <-allActiveDigitalInfoErrChan
+	allActiveBinaryInfoErr := <-allActiveBinaryInfoErrChan
+	allActiveDigitalInfo := <-allActiveDigitalInfoChan
+	allActiveBinaryInfo := <-allActiveBinaryInfoChan
+
+	if allActiveDigitalInfoErr != nil {
+		return active.ActiveInfo{}, allActiveDigitalInfoErr
+	}
+	if allActiveBinaryInfoErr != nil {
+		return active.ActiveInfo{}, allActiveDigitalInfoErr
+	}
+
+	binaryActives := make([]responseMessage.ActivesData, 0)
+	turboActives := make([]responseMessage.ActivesData, 0)
+	digitalActives := allActiveDigitalInfo.Underlying
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		for _, active := range allActiveBinaryInfo.Binary.Actives {
+			binaryActives = append(binaryActives, active)
+		}
+		wg.Done()
+	}()
+	go func() {
+		for _, active := range allActiveBinaryInfo.Turbo.Actives {
+			turboActives = append(turboActives, active)
+		}
+		wg.Done()
+	}()
+	wg.Wait()
+
+	activeInfo := active.ActiveInfo{
+		Turbo:   turboActives,
+		Binary:  binaryActives,
+		Digital: digitalActives,
+	}
+
+	return activeInfo, nil
 }

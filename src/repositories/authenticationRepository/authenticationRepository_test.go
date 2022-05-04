@@ -7,8 +7,8 @@ import (
 
 func TestGetSSID(t *testing.T) {
 
-	_, err := GetSSID()
-
+	_, errChan := GetSSID()
+	err := <-errChan
 	if err != nil {
 		log.Fatalf(err.Error())
 	}

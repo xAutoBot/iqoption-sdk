@@ -10,6 +10,7 @@ type sendMessageGetInitializationData struct {
 }
 type body struct {
 }
+
 type getInitializationDataMsg struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`

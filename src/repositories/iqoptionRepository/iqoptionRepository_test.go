@@ -121,7 +121,7 @@ func TestGetExpirationTime(t *testing.T) {
 		timestamp, _ := connection.GetExpirationTime(int(teste.duration))
 		wantInTimeStamp, _ := time.Parse("2006/01/02 15:4:5", teste.want)
 		if timestamp != wantInTimeStamp.Unix() {
-			t.Errorf("index %v duration is %v want %v received %v", index, teste.duration, teste.want, time.Unix(timestamp, 0).Format("2006/01/02 15:04:05"))
+			t.Errorf("index %v duration is %v. Want %v and received %v", index, teste.duration, teste.want, time.Unix(timestamp, 0).Format("2006/01/02 15:04:05"))
 		}
 
 	}
@@ -175,15 +175,6 @@ func TestGetDigitalInstrumentID(t *testing.T) {
 	}
 }
 
-func TestGetAllActiveInfo(t *testing.T) {
-
-	_, err := connection.GetAllActiveInfo()
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-}
-
 func TestOpenDigitalOrder(t *testing.T) {
 	activeId := 1
 	duration := 15
@@ -209,4 +200,28 @@ func TestGetInstrumentIndex(t *testing.T) {
 	for {
 		time.Sleep(time.Second)
 	}
+}
+
+func TestGetAllActiveDigitalInfo(t *testing.T) {
+	digitalActives, err := connection.GetAllActiveDigitalInfo()
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	log.Println(digitalActives)
+}
+
+func TestGetAllActiveBinaryInfo(t *testing.T) {
+	digitalActives, err := connection.GetAllActiveBinaryInfo()
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	log.Println(digitalActives)
+}
+
+func TestGetAllActiveInfo(t *testing.T) {
+	digitalActives, err := connection.GetAllActiveInfo()
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	log.Println(digitalActives)
 }

@@ -1,13 +1,29 @@
 package orderService
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
-func TestOpenOrder(t *testing.T) {
-	response, _ := OpenOrder()
+var orderService OrderService
+var err error
 
-	fmt.Println(response)
-
+func init() {
+	orderService, err = NewOrderService()
+	if err != nil {
+		panic(err.Error())
+	}
 }
+
+func TestActiveIsOpen(t *testing.T) {
+	activeId := 1
+	activeIsOpen, err := orderService.ActiveIsOpen(activeId)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	t.Logf("%v", activeIsOpen)
+}
+
+// func TestOpenBinaryOrder(t *testing.T) {
+// 	response, _ := openBinaryOrder()
+
+// 	fmt.Println(response)
+
+// }
