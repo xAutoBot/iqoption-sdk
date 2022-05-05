@@ -21,7 +21,7 @@ func NewIqoptionService() (IqoptionService, error) {
 	return iqoptionService, err
 }
 
-func (i *IqoptionService) GetAllActiveInfo() (active.ActiveInfo, error) {
+func (i IqoptionService) GetAllActiveInfo() (active.ActiveInfo, error) {
 
 	allActiveDigitalInfoChan := make(chan responseMessage.UnderlyingData)
 	allActiveBinaryInfoChan := make(chan responseMessage.InitializationData)
