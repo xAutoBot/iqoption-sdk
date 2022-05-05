@@ -5,16 +5,13 @@ import (
 	"log"
 	"testing"
 	"time"
-
-	"github.com/xAutoBot/iqoption-sdk/src/configs"
 )
 
 var connection *IqOptionRepository
 var err error
 
 func init() {
-	iqOptionRepository := IqOptionRepository{}
-	connection, err = iqOptionRepository.Connect(configs.GetAccountType())
+	connection, err = NewIqOptionRepository()
 	if err != nil {
 		panic(err)
 	}
@@ -212,14 +209,6 @@ func TestGetAllActiveDigitalInfo(t *testing.T) {
 
 func TestGetAllActiveBinaryInfo(t *testing.T) {
 	digitalActives, err := connection.GetAllActiveBinaryInfo()
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	log.Println(digitalActives)
-}
-
-func TestGetAllActiveInfo(t *testing.T) {
-	digitalActives, err := connection.GetAllActiveInfo()
 	if err != nil {
 		t.Errorf(err.Error())
 	}

@@ -9,13 +9,11 @@ import (
 	"math"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/xAutoBot/iqoption-sdk/src/configs"
-	"github.com/xAutoBot/iqoption-sdk/src/entities/active"
 	"github.com/xAutoBot/iqoption-sdk/src/entities/messages"
 	"github.com/xAutoBot/iqoption-sdk/src/entities/messages/responseMessage"
 	"github.com/xAutoBot/iqoption-sdk/src/entities/profile"
@@ -52,6 +50,13 @@ type messageToSendStruct struct {
 
 var websocketHost = flag.String("addr", configs.IqoptionWebSocketHost, "http service address")
 
+func NewIqOptionRepository() (*IqOptionRepository, error) {
+	iqoption := IqOptionRepository{}
+	iqoptionRepository, err := iqoption.connect(configs.GetAccountType())
+
+	return iqoptionRepository, err
+}
+
 func (i *IqOptionRepository) authenticate(ssid string) error {
 	i.authenticatedChan = make(chan []byte)
 	defer close(i.authenticatedChan)
@@ -71,7 +76,7 @@ func (i *IqOptionRepository) authenticate(ssid string) error {
 	return nil
 }
 
-func (i *IqOptionRepository) Connect(accountType string) (*IqOptionRepository, error) {
+func (i *IqOptionRepository) connect(accountType string) (*IqOptionRepository, error) {
 
 	var err error
 
@@ -601,63 +606,4 @@ func (i *IqOptionRepository) GetAllActiveBinaryInfo() (responseMessage.Initializ
 		}
 		time.Sleep(time.Second)
 	}
-}
-
-func (i *IqOptionRepository) GetAllActiveInfo() (active.ActiveInfo, error) {
-
-	allActiveDigitalInfoChan := make(chan responseMessage.UnderlyingData)
-	allActiveBinaryInfoChan := make(chan responseMessage.InitializationData)
-	allActiveDigitalInfoErrChan := make(chan error)
-	allActiveBinaryInfoErrChan := make(chan error)
-
-	go func() {
-		allActiveDigitalInfo, err := i.GetAllActiveDigitalInfo()
-		allActiveDigitalInfoErrChan <- err
-		allActiveDigitalInfoChan <- allActiveDigitalInfo
-	}()
-	go func() {
-		allActiveBinaryInfo, err := i.GetAllActiveBinaryInfo()
-		allActiveBinaryInfoErrChan <- err
-		allActiveBinaryInfoChan <- allActiveBinaryInfo
-	}()
-	allActiveDigitalInfoErr := <-allActiveDigitalInfoErrChan
-	allActiveBinaryInfoErr := <-allActiveBinaryInfoErrChan
-	allActiveDigitalInfo := <-allActiveDigitalInfoChan
-	allActiveBinaryInfo := <-allActiveBinaryInfoChan
-
-	if allActiveDigitalInfoErr != nil {
-		return active.ActiveInfo{}, allActiveDigitalInfoErr
-	}
-	if allActiveBinaryInfoErr != nil {
-		return active.ActiveInfo{}, allActiveDigitalInfoErr
-	}
-
-	binaryActives := make([]responseMessage.ActivesData, 0)
-	turboActives := make([]responseMessage.ActivesData, 0)
-	digitalActives := allActiveDigitalInfo.Underlying
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		for _, active := range allActiveBinaryInfo.Binary.Actives {
-			binaryActives = append(binaryActives, active)
-		}
-		wg.Done()
-	}()
-	go func() {
-		for _, active := range allActiveBinaryInfo.Turbo.Actives {
-			turboActives = append(turboActives, active)
-		}
-		wg.Done()
-	}()
-	wg.Wait()
-
-	activeInfo := active.ActiveInfo{
-		Turbo:   turboActives,
-		Binary:  binaryActives,
-		Digital: digitalActives,
-	}
-
-	return activeInfo, nil
 }
