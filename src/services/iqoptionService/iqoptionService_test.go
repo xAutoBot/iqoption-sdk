@@ -5,8 +5,18 @@ import (
 	"testing"
 )
 
+var iqoptionService IqoptionService
+var err error
+
+func init() {
+	iqoptionService, err = NewIqoptionService()
+
+	if err != nil {
+		panic(err.Error())
+	}
+}
 func TestGetAllActiveInfo(t *testing.T) {
-	digitalActives, err := connection.GetAllActiveInfo()
+	digitalActives, err := iqoptionService.GetAllActiveInfo()
 	if err != nil {
 		t.Errorf(err.Error())
 	}
