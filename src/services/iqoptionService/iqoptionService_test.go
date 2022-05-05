@@ -22,3 +22,13 @@ func TestGetAllActiveInfo(t *testing.T) {
 	}
 	log.Println(digitalActives)
 }
+
+func TestActiveIsOpen(t *testing.T) {
+	activeId := 1
+
+	isOpen, err := iqoptionService.ActiveIsOpen(activeId)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	log.Println(isOpen)
+}

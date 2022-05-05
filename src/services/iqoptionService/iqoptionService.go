@@ -79,3 +79,58 @@ func (i IqoptionService) GetAllActiveInfo() (active.ActiveInfo, error) {
 
 	return activeInfo, nil
 }
+
+func (i IqoptionService) ActiveIsOpen(activeId int) (active.ActiveStatus, error) {
+	activeStatus := active.ActiveStatus{
+		DigitalIsOpen: false,
+		BinaryIsOpen:  false,
+		TurboIsOpen:   false,
+		ActiveId:      activeId,
+	}
+	allActiveInfo, err := i.GetAllActiveInfo()
+
+	if err != nil {
+		return activeStatus, err
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func() {
+
+		for _, binaryActiveInfo := range allActiveInfo.Binary {
+			if binaryActiveInfo.ID == activeId && binaryActiveInfo.Enabled {
+				if !binaryActiveInfo.IsSuspended {
+					activeStatus.BinaryIsOpen = true
+				}
+			}
+		}
+		wg.Done()
+	}()
+	go func() {
+
+		for _, turboActiveInfo := range allActiveInfo.Turbo {
+			if turboActiveInfo.ID == activeId && turboActiveInfo.Enabled {
+				if !turboActiveInfo.IsSuspended {
+					activeStatus.TurboIsOpen = true
+				}
+			}
+		}
+		wg.Done()
+	}()
+	go func() {
+
+		for _, digitalActiveInfo := range allActiveInfo.Digital {
+			if digitalActiveInfo.ActiveID == activeId && digitalActiveInfo.IsEnabled {
+				if !digitalActiveInfo.IsSuspended {
+					activeStatus.DigitalIsOpen = true
+				}
+			}
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	return activeStatus, nil
+}
